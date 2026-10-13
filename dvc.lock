@@ -41,3 +41,28 @@ stages:
       hash: md5
       md5: ef211d2436be6053fd19e1505957377f
       size: 282300
+  features:
+    cmd: ".venv/bin/python src/features/build_features.py --as-of-date 2023-12-31
+      --random-state 42\n"
+    deps:
+    - path: data/interim/model_source.parquet
+      hash: md5
+      md5: ef211d2436be6053fd19e1505957377f
+      size: 282300
+    - path: src/features/build_features.py
+      hash: md5
+      md5: 9f3f2a15da4f7d920cc0500bb5630869
+      size: 3795
+    outs:
+    - path: data/processed/test.parquet
+      hash: md5
+      md5: 97690c200c47731591aec459a2a1d370
+      size: 97857
+    - path: data/processed/train.parquet
+      hash: md5
+      md5: 14a1bf4326304cedd8e4d7e7f311f96f
+      size: 262602
+    - path: data/processed/validation.parquet
+      hash: md5
+      md5: f326504160a40068a75a6ade351c1799
+      size: 82036

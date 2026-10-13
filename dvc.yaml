@@ -20,3 +20,16 @@ stages:
       - src/data/export_model_table.py
     outs:
       - data/interim/model_source.parquet
+
+  features:
+    cmd: >
+      .venv/bin/python src/features/build_features.py
+      --as-of-date 2023-12-31
+      --random-state 42
+    deps:
+      - data/interim/model_source.parquet
+      - src/features/build_features.py
+    outs:
+      - data/processed/train.parquet
+      - data/processed/validation.parquet
+      - data/processed/test.parquet
