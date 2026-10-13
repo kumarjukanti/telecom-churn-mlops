@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0",
+  "feature_build_version": "1.0.0",
+  "generated_at": "2026-10-13T22:18:43.467528+00:00",
+  "source": "data/processed/features.csv",
+  "identifier": "customer_id",
+  "target": {
+    "name": "churn",
+    "type": "integer",
+    "allowed_values": [
+      0,
+      1
+    ],
+    "definition": {
+      "0": "Customer retained",
+      "1": "Customer churned"
+    }
+  },
+  "features": {
+    "age": {
+      "type": "number",
+      "nullable": true
+    },
+    "monthly_charges": {
+      "type": "number",
+      "nullable": false
+    },
+    "months_observed": {
+      "type": "number",
+      "nullable": false
+    },
+    "avg_call_minutes": {
+      "type": "number",
+      "nullable": false
+    },
+    "avg_data_usage_gb": {
+      "type": "number",
+      "nullable": false
+    },
+    "avg_sms_count": {
+      "type": "number",
+      "nullable": false
+    },
+    "total_complaints": {
+      "type": "number",
+      "nullable": false
+    },
+    "avg_complaints": {
+      "type": "number",
+      "nullable": false
+    },
+    "tenure_months": {
+      "type": "number",
+      "nullable": false
+    },
+    "complaint_rate": {
+      "type": "number",
+      "nullable": false
+    },
+    "charges_per_tenure_month": {
+      "type": "number",
+      "nullable": false
+    },
+    "gender": {
+      "type": "string",
+      "nullable": false,
+      "allowed_categories": [
+        "Female",
+        "Male"
+      ]
+    },
+    "region": {
+      "type": "string",
+      "nullable": false,
+      "allowed_categories": [
+        "Rural",
+        "Suburban",
+        "Urban"
+      ]
+    },
+    "contract_type": {
+      "type": "string",
+      "nullable": false,
+      "allowed_categories": [
+        "Monthly",
+        "Prepaid",
+        "Yearly"
+      ]
+    }
+  }
+}
