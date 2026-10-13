@@ -1,0 +1,43 @@
+schema: '2.0'
+stages:
+  build_db:
+    cmd: ".venv/bin/python src/data/build_database.py && sqlite3 db/telecom.db < db/sql/02_features.sql\n"
+    deps:
+    - path: data/raw
+      hash: md5
+      md5: 0542db783c3309202be8c2d635f09149.dir
+      size: 5345623
+      nfiles: 4
+    - path: db/sql/01_schema.sql
+      hash: md5
+      md5: 69447b62929b2bb878b5e4d56250f543
+      size: 768
+    - path: db/sql/02_features.sql
+      hash: md5
+      md5: ae44d5874fcff1429d8b5b04e8e629ac
+      size: 775
+    - path: src/data/build_database.py
+      hash: md5
+      md5: 2a371a1f0e57fc2eab05d2296dfe4f84
+      size: 8350
+    outs:
+    - path: db/telecom.db
+      hash: md5
+      md5: 974a520e929d4be308145ee166923ef3
+      size: 10866688
+  export_model_source:
+    cmd: ".venv/bin/python src/data/export_model_table.py\n"
+    deps:
+    - path: db/telecom.db
+      hash: md5
+      md5: 974a520e929d4be308145ee166923ef3
+      size: 10866688
+    - path: src/data/export_model_table.py
+      hash: md5
+      md5: 73fcac145755566ab6a157b0ec524d5e
+      size: 965
+    outs:
+    - path: data/interim/model_source.parquet
+      hash: md5
+      md5: ef211d2436be6053fd19e1505957377f
+      size: 282300

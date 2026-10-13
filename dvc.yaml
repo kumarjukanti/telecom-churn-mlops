@@ -1,0 +1,22 @@
+
+stages:
+  build_db:
+    cmd: >
+      .venv/bin/python src/data/build_database.py &&
+      sqlite3 db/telecom.db < db/sql/02_features.sql
+    deps:
+      - data/raw
+      - src/data/build_database.py
+      - db/sql/01_schema.sql
+      - db/sql/02_features.sql
+    outs:
+      - db/telecom.db
+
+  export_model_source:
+    cmd: >
+      .venv/bin/python src/data/export_model_table.py
+    deps:
+      - db/telecom.db
+      - src/data/export_model_table.py
+    outs:
+      - data/interim/model_source.parquet
