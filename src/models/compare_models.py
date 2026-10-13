@@ -16,26 +16,24 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
+    confusion_matrix,
+    f1_score,
+    precision_recall_curve,
     precision_score,
     recall_score,
-    f1_score,
     roc_auc_score,
-    precision_recall_curve,
-    confusion_matrix,
 )
-from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 
-# =====================================================
-# 1. PROJECT CONFIGURATION
-# =====================================================
-
 ROOT = Path(__file__).resolve().parents[2]
-DATA = ROOT / "data/processed/features.csv"
-MODEL_DIR = ROOT / "models"
-ARTIFACT_DIR = ROOT / "artifacts"
+
+TRAIN_FILE = ROOT / "data/processed/train.parquet"
+VALIDATION_FILE = ROOT / "data/processed/validation.parquet"
+
+MODEL_FILE = ROOT / "models/selected_churn_model.joblib"
+REPORT_FILE = ROOT / "artifacts/model_selection.json"
 
 RANDOM_STATE = 42
 MIN_PRECISION = 0.50
@@ -60,13 +58,10 @@ CATEGORICAL = [
     "contract_type",
 ]
 
+FEATURES = NUMERIC + CATEGORICAL
 
-# =====================================================
-# 2. PREPROCESSING PIPELINE
-# =====================================================
 
 def make_pipeline(classifier):
-
     numeric_pipe = Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
         ("scaler", StandardScaler()),
@@ -91,99 +86,82 @@ def make_pipeline(classifier):
     ])
 
 
-# =====================================================
-# 3. MODEL RANKING METRICS
-# =====================================================
+def validate_dataset(df, name):
+    required = FEATURES + ["customer_id", "churn"]
 
-def evaluate_model(model, X, y):
+    missing = sorted(set(required) - set(df.columns))
+    if missing:
+        raise ValueError(
+            f"{name}: missing columns {missing}"
+        )
 
-    probabilities = model.predict_proba(X)[:, 1]
+    if df.empty:
+        raise ValueError(f"{name}: dataset is empty")
 
-    return {
-        "roc_auc": float(
-            roc_auc_score(y, probabilities)
-        ),
-        "pr_auc": float(
-            average_precision_score(y, probabilities)
-        ),
-    }
+    if df["customer_id"].isna().any():
+        raise ValueError(f"{name}: missing customer IDs")
 
+    if df["customer_id"].duplicated().any():
+        raise ValueError(f"{name}: duplicate customer IDs")
 
-# =====================================================
-# 4. THRESHOLD SELECTION
-# =====================================================
+    if df["churn"].isna().any():
+        raise ValueError(f"{name}: missing churn labels")
+
+    if not df["churn"].isin([0, 1]).all():
+        raise ValueError(f"{name}: invalid churn labels")
+
+    if df["churn"].nunique() != 2:
+        raise ValueError(
+            f"{name}: both churn classes are required"
+        )
+
 
 def choose_threshold(y_true, probabilities):
-
     precision, recall, thresholds = (
         precision_recall_curve(y_true, probabilities)
     )
 
-    valid = precision[:-1] >= MIN_PRECISION
+    valid_indices = np.flatnonzero(
+        precision[:-1] >= MIN_PRECISION
+    )
 
-    if valid.any():
-        candidates = np.flatnonzero(valid)
-
-        best_index = candidates[
-            np.argmax(recall[candidates])
+    if len(valid_indices):
+        best_index = valid_indices[
+            np.argmax(recall[valid_indices])
         ]
 
-        threshold = float(thresholds[best_index])
-
-        return threshold, True
+        return float(thresholds[best_index]), True
 
     # Diagnostic fallback only.
-    # This does not approve deployment.
+    # Never interpret this as a passed acceptance gate.
     best_index = int(np.argmax(precision[:-1]))
 
-    threshold = float(thresholds[best_index])
-
-    print(
-        "WARNING: No threshold meets minimum precision."
-    )
-
-    return threshold, False
+    return float(thresholds[best_index]), False
 
 
-# =====================================================
-# 5. EVALUATION AND CONFUSION MATRIX
-# =====================================================
+def evaluate_at_threshold(y_true, probabilities, threshold):
+    predicted = (probabilities >= threshold).astype(int)
 
-def threshold_metrics(y_true, probabilities, threshold):
-
-    predictions = (
-        probabilities >= threshold
-    ).astype(int)
-
-    cm = confusion_matrix(
-        y_true,
-        predictions,
-        labels=[0, 1],
-    )
-
-    tn, fp, fn, tp = cm.ravel()
+    tn, fp, fn, tp = confusion_matrix(
+        y_true, predicted, labels=[0, 1]
+    ).ravel()
 
     return {
         "threshold": float(threshold),
-        "accuracy": float(
-            accuracy_score(y_true, predictions)
-        ),
+        "accuracy": float(accuracy_score(y_true, predicted)),
         "precision": float(
-            precision_score(
-                y_true, predictions, zero_division=0
-            )
+            precision_score(y_true, predicted, zero_division=0)
         ),
         "recall": float(
-            recall_score(
-                y_true, predictions, zero_division=0
-            )
+            recall_score(y_true, predicted, zero_division=0)
         ),
         "f1": float(
-            f1_score(
-                y_true, predictions, zero_division=0
-            )
+            f1_score(y_true, predicted, zero_division=0)
         ),
-        "confusion_matrix": cm.tolist(),
+        "confusion_matrix": [
+            [int(tn), int(fp)],
+            [int(fn), int(tp)],
+        ],
         "true_negatives": int(tn),
         "false_positives": int(fp),
         "false_negatives": int(fn),
@@ -191,79 +169,30 @@ def threshold_metrics(y_true, probabilities, threshold):
     }
 
 
-# =====================================================
-# 6. MAIN WORKFLOW
-# =====================================================
-
 def main():
+    print("STEP 1: Loading DVC-managed datasets...")
 
-    print("\nSTEP 1: Loading features...")
+    train_df = pd.read_parquet(TRAIN_FILE)
+    val_df = pd.read_parquet(VALIDATION_FILE)
 
-    df = pd.read_csv(DATA)
+    validate_dataset(train_df, "train")
+    validate_dataset(val_df, "validation")
 
-    required = NUMERIC + CATEGORICAL + ["churn"]
-    missing = sorted(set(required) - set(df.columns))
+    if set(train_df["customer_id"]) & set(val_df["customer_id"]):
+        raise ValueError(
+            "Training and validation customer IDs overlap"
+        )
 
-    if missing:
-        raise ValueError(f"Missing columns: {missing}")
+    X_train = train_df[FEATURES]
+    y_train = train_df["churn"].astype(int)
 
-    if df["churn"].isna().any():
-        raise ValueError("Missing churn labels")
+    X_val = val_df[FEATURES]
+    y_val = val_df["churn"].astype(int)
 
-    if not df["churn"].isin([0, 1]).all():
-        raise ValueError("Churn must be 0 or 1")
-
-    X = df[NUMERIC + CATEGORICAL]
-    y = df["churn"].astype(int)
-
-    print(f"Total customers: {len(df)}")
-
-    # -------------------------------------------------
-    # STEP 2: TRAIN / VALIDATION / TEST SPLIT
-    # -------------------------------------------------
-
-    print("\nSTEP 2: Splitting data...")
-
-    X_trainval, X_test, y_trainval, y_test = train_test_split(
-        X,
-        y,
-        test_size=0.20,
-        stratify=y,
-        random_state=RANDOM_STATE,
-    )
-
-    X_train, X_val, y_train, y_val = train_test_split(
-        X_trainval,
-        y_trainval,
-        test_size=0.20,
-        stratify=y_trainval,
-        random_state=RANDOM_STATE,
-    )
-
-    print(f"Training: {len(X_train)}")
-    print(f"Validation: {len(X_val)}")
-    print(f"Test reserved: {len(X_test)}")
-
-    # -------------------------------------------------
-    # STEP 3: CLASS PREVALENCE BASELINE
-    # -------------------------------------------------
-
-    print("\nSTEP 3: Calculating churn baseline...")
+    print(f"Training records: {len(X_train)}")
+    print(f"Validation records: {len(X_val)}")
 
     class_prevalence = float(y_val.mean())
-
-    print(
-        f"Validation churn prevalence: "
-        f"{class_prevalence:.4f}"
-    )
-
-    print(
-        f"PR-AUC baseline: {class_prevalence:.4f}"
-    )
-
-    # -------------------------------------------------
-    # STEP 4: TRAIN THREE MODELS
-    # -------------------------------------------------
 
     candidates = {
         "Logistic Regression": LogisticRegression(
@@ -286,31 +215,32 @@ def main():
     results = {}
     trained_models = {}
 
-    print("\nSTEP 4: Training and comparing models...")
+    print("\nSTEP 2: Training and comparing models...")
 
     for name, classifier in candidates.items():
-
-        print(f"\nTraining {name}...")
-
         pipeline = make_pipeline(classifier)
-
         pipeline.fit(X_train, y_train)
 
-        scores = evaluate_model(
-            pipeline, X_val, y_val
-        )
+        probabilities = pipeline.predict_proba(X_val)[:, 1]
 
-        results[name] = scores
+        results[name] = {
+            "roc_auc": float(
+                roc_auc_score(y_val, probabilities)
+            ),
+            "pr_auc": float(
+                average_precision_score(y_val, probabilities)
+            ),
+        }
+
         trained_models[name] = pipeline
 
-        print(f"ROC-AUC: {scores['roc_auc']:.4f}")
-        print(f"PR-AUC:  {scores['pr_auc']:.4f}")
+        print(
+            f"{name}: "
+            f"ROC-AUC={results[name]['roc_auc']:.4f}, "
+            f"Average Precision={results[name]['pr_auc']:.4f}"
+        )
 
-    # -------------------------------------------------
-    # STEP 5: SELECT BEST CANDIDATE
-    # -------------------------------------------------
-
-    print("\nSTEP 5: Selecting best candidate...")
+    print("\nSTEP 3: Selecting best candidate...")
 
     best_name = max(
         results,
@@ -319,80 +249,25 @@ def main():
 
     best_model = trained_models[best_name]
 
-    print(f"Selected candidate: {best_name}")
-
-    # -------------------------------------------------
-    # STEP 6: SELECT THRESHOLD
-    # -------------------------------------------------
-
-    probabilities = best_model.predict_proba(
-        X_val
-    )[:, 1]
+    probabilities = best_model.predict_proba(X_val)[:, 1]
 
     threshold, threshold_feasible = choose_threshold(
         y_val, probabilities
     )
 
-    metrics = threshold_metrics(
+    validation_metrics = evaluate_at_threshold(
         y_val, probabilities, threshold
     )
 
-    # -------------------------------------------------
-    # STEP 7: BUSINESS ACCEPTANCE CHECK
-    # -------------------------------------------------
-
-    business_criteria_met = bool(
+    precision_requirement_met = bool(
         threshold_feasible
-        and metrics["precision"] >= MIN_PRECISION
+        and validation_metrics["precision"] >= MIN_PRECISION
     )
 
-    # Conservative default:
-    # The model must not be deployed merely because
-    # it was the best model in the comparison.
+    business_criteria_met = precision_requirement_met
+
+    # Model selection is not production authorization.
     deployment_approved = False
-
-    print("\nSTEP 6: Validation results...")
-
-    for key, value in metrics.items():
-        print(f"{key}: {value}")
-
-    print(
-        "Business criteria met:",
-        business_criteria_met
-    )
-
-    print(
-        "Deployment approved:",
-        deployment_approved
-    )
-
-    if not business_criteria_met:
-        print(
-            "\nWARNING: Business acceptance criteria "
-            "were NOT met."
-        )
-
-    # -------------------------------------------------
-    # STEP 8: SAVE MODEL AND RESULTS
-    # -------------------------------------------------
-
-    MODEL_DIR.mkdir(
-        parents=True, exist_ok=True
-    )
-
-    ARTIFACT_DIR.mkdir(
-        parents=True, exist_ok=True
-    )
-
-    model_path = (
-        MODEL_DIR / "selected_churn_model.joblib"
-    )
-
-    report_path = (
-        ARTIFACT_DIR / "model_selection.json"
-    )
-
-    joblib.dump(best_model, model_path)
 
     report = {
         "selected_model": best_name,
@@ -400,34 +275,49 @@ def main():
         "minimum_precision": MIN_PRECISION,
         "class_prevalence": class_prevalence,
         "pr_auc_baseline": class_prevalence,
-        "precision_requirement_met": bool(
-            metrics["precision"] >= MIN_PRECISION
-        ),
+        "precision_requirement_met": precision_requirement_met,
         "business_criteria_met": business_criteria_met,
         "deployment_approved": deployment_approved,
-        "threshold_selection_feasible": threshold_feasible,
+        "threshold_selection_feasible": bool(
+            threshold_feasible
+        ),
         "threshold": threshold,
-        "validation_metrics": metrics,
+        "validation_metrics": validation_metrics,
         "model_comparison": results,
         "random_state": RANDOM_STATE,
         "split": {
-            "train": len(X_train),
-            "validation": len(X_val),
-            "test": len(X_test),
+            "train": len(train_df),
+            "validation": len(val_df),
+            "test": 2000,
         },
         "test_evaluated": False,
     }
 
-    with open(
-        report_path, "w", encoding="utf-8"
-    ) as file:
+    print(f"Selected candidate: {best_name}")
+    print(f"Threshold: {threshold:.6f}")
+    print(
+        "Validation precision:",
+        f"{validation_metrics['precision']:.4f}"
+    )
+    print(
+        "Validation recall:",
+        f"{validation_metrics['recall']:.4f}"
+    )
+    print("Business criteria met:", business_criteria_met)
+    print("Deployment approved:", deployment_approved)
+
+    MODEL_FILE.parent.mkdir(parents=True, exist_ok=True)
+    REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    joblib.dump(best_model, MODEL_FILE)
+
+    with REPORT_FILE.open("w", encoding="utf-8") as file:
         json.dump(report, file, indent=2)
 
-    print(f"\nSaved model: {model_path}")
-    print(f"Saved report: {report_path}")
-
-    print("\nSUCCESS: Evaluation report generated.")
-    print("Test dataset remains untouched.")
+    print(f"\nSaved model: {MODEL_FILE}")
+    print(f"Saved report: {REPORT_FILE}")
+    print("SUCCESS: Training stage completed.")
+    print("Test dataset was not accessed.")
 
 
 if __name__ == "__main__":

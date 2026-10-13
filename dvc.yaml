@@ -33,3 +33,15 @@ stages:
       - data/processed/train.parquet
       - data/processed/validation.parquet
       - data/processed/test.parquet
+
+  train:
+    cmd: >
+      .venv/bin/python src/models/compare_models.py
+    deps:
+      - src/models/compare_models.py
+      - data/processed/train.parquet
+      - data/processed/validation.parquet
+    outs:
+      - models/selected_churn_model.joblib
+    metrics:
+      - artifacts/model_selection.json
