@@ -90,3 +90,35 @@ stages:
       hash: md5
       md5: 075b1c4afdda84d89f8e26814b7345d8
       size: 563634
+  evaluate:
+    cmd: ".venv/bin/python src/models/evaluate.py\n"
+    deps:
+    - path: artifacts/model_selection.json
+      hash: md5
+      md5: 1d4dcb693a0d793520943ebc8e15a139
+      size: 1254
+    - path: data/processed/test.parquet
+      hash: md5
+      md5: 97690c200c47731591aec459a2a1d370
+      size: 97857
+    - path: models/selected_churn_model.joblib
+      hash: md5
+      md5: 075b1c4afdda84d89f8e26814b7345d8
+      size: 563634
+    - path: src/models/evaluate.py
+      hash: md5
+      md5: 8cf1a2f1e4bd4df617cadb288d4ce7ac
+      size: 8157
+    outs:
+    - path: reports/confusion_matrix.png
+      hash: md5
+      md5: 9d1e4b854e20d6402f465b441e81e4ba
+      size: 25726
+    - path: reports/metrics.json
+      hash: md5
+      md5: f3361b49cc48ed4f187f698de786c5da
+      size: 1124
+    - path: reports/roc_curve.png
+      hash: md5
+      md5: cbfe2f958b4a307f974a8c2168249124
+      size: 57472

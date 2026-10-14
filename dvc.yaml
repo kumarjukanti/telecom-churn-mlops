@@ -45,3 +45,17 @@ stages:
       - models/selected_churn_model.joblib
     metrics:
       - artifacts/model_selection.json
+
+  evaluate:
+    cmd: >
+      .venv/bin/python src/models/evaluate.py
+    deps:
+      - src/models/evaluate.py
+      - models/selected_churn_model.joblib
+      - artifacts/model_selection.json
+      - data/processed/test.parquet
+    metrics:
+      - reports/metrics.json
+    outs:
+      - reports/confusion_matrix.png
+      - reports/roc_curve.png
