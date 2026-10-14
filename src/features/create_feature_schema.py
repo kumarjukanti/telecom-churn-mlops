@@ -1,9 +1,9 @@
 
-from pathlib import Path
-from datetime import datetime, timezone
 import json
-import pandas as pd
+from datetime import UTC, datetime
+from pathlib import Path
 
+import pandas as pd
 
 # =====================================================
 # PROJECT CONFIGURATION
@@ -59,7 +59,7 @@ def main():
         "schema_version": "1.0",
         "feature_build_version": FEATURE_BUILD_VERSION,
         "generated_at": datetime.now(
-            timezone.utc
+            UTC
         ).isoformat(),
         "source": "data/processed/features.csv",
         "identifier": IDENTIFIER,

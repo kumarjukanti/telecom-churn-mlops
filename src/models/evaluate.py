@@ -1,27 +1,26 @@
 
-from pathlib import Path
 import json
+from pathlib import Path
 
 import joblib
 import matplotlib
+
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
 from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    RocCurveDisplay,
     accuracy_score,
     average_precision_score,
     confusion_matrix,
-    ConfusionMatrixDisplay,
     f1_score,
     precision_score,
     recall_score,
     roc_auc_score,
-    RocCurveDisplay,
 )
-
 
 # =====================================================
 # 1. PROJECT CONFIGURATION
@@ -179,7 +178,7 @@ def main():
     ).ravel()
 
     test_metrics = {
-        "customers": int(len(y_test)),
+        "customers": len(y_test),
         "actual_churners": int(y_test.sum()),
         "class_prevalence": float(y_test.mean()),
         "threshold": threshold,
@@ -295,13 +294,19 @@ def main():
         "evaluation_purpose": "experimental_benchmark",
         "test_metrics": test_metrics,
         "limitations": [
-            "Validation precision requirement not met"
-            if not business_criteria_met
-            else "Production authorization not established",
-            "Churn label timing relative to feature "
-            "cutoff has not been verified",
-            "Test metrics must not be used for "
-            "further model or threshold tuning",
+        (
+        "Validation precision requirement not met"
+        if not business_criteria_met
+        else "Production authorization not established"
+        ),
+        (
+        "Churn label timing relative to feature "
+        "cutoff has not been verified"
+        ),
+        (
+        "Test metrics must not be used for "
+        "further model or threshold tuning"
+        ),
         ],
     }
 

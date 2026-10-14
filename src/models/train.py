@@ -3,22 +3,20 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
-
-from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
+    classification_report,
+    f1_score,
     precision_score,
     recall_score,
-    f1_score,
     roc_auc_score,
-    classification_report,
 )
-
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 # =====================================================
 # 1. PROJECT PATHS
@@ -92,7 +90,7 @@ def main():
     print("\nSTEP 2: Splitting dataset...")
 
     # Reserve 20% for final testing
-    X_trainval, X_test, y_trainval, y_test = train_test_split(
+    X_trainval, X_test, y_trainval, _y_test = train_test_split(
         X,
         y,
         test_size=0.20,
