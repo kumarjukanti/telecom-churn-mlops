@@ -79,8 +79,8 @@ stages:
       size: 82036
     - path: src/models/compare_models.py
       hash: md5
-      md5: e0c44dbd675d1ebd3fee8abf98e162fb
-      size: 8588
+      md5: 2592044455954969afea6b7f8bcb1163
+      size: 12624
     outs:
     - path: artifacts/model_selection.json
       hash: md5
