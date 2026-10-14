@@ -4,7 +4,7 @@
 import argparse
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
@@ -131,7 +131,7 @@ def main(sync_mlflow=False):
 
     started_at = datetime.fromtimestamp(
         run.info.start_time / 1000,
-        tz=timezone.utc,
+        tz=UTC,
     ).isoformat()
 
     lineage = {
@@ -156,12 +156,18 @@ def main(sync_mlflow=False):
         "test_metrics": test_metrics,
         "limitations": evaluation["limitations"],
         "provenance_notes": [
-            "Feature schema created after this training run; "
-            "feature names match, historical schema approval unverified.",
-            "DVC lock records historical pipeline dependencies; "
-            "source files were subsequently reformatted.",
-            "Registered model and local joblib artifact equivalence "
-            "has not been independently verified.",
+    (
+        "Feature schema created after this training run; "
+        "feature names match, historical schema approval unverified."
+    ),
+    (
+        "DVC lock records historical pipeline dependencies; "
+        "source files were subsequently reformatted."
+    ),
+    (
+        "Registered model and local joblib artifact equivalence "
+        "has not been independently verified."
+    ),
         ],
     }
 
