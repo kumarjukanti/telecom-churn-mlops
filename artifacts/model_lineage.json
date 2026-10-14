@@ -1,0 +1,61 @@
+{
+  "registered_model_name": "telecom-churn-model",
+  "registered_model_version": "1",
+  "registered_model_aliases": [],
+  "model_type": "HistGradientBoosting",
+  "lifecycle_status": "development_candidate",
+  "deployment_approved": false,
+  "training_git_sha": "b33a69dcc25c5dc894d7aa165c27e3a38a331933",
+  "mlflow_run_id": "9bc25a76a0174fd295c194db8481229b",
+  "mlflow_logged_model_id": "m-5751ae2016c34628bd8a0309eb1f6bfc",
+  "training_started_at_utc": "2026-10-14T00:41:35.242000+00:00",
+  "dvc_hashes": {
+    "train": "14a1bf4326304cedd8e4d7e7f311f96f",
+    "validation": "f326504160a40068a75a6ade351c1799",
+    "test": "97690c200c47731591aec459a2a1d370",
+    "model": "075b1c4afdda84d89f8e26814b7345d8",
+    "selection": "1d4dcb693a0d793520943ebc8e15a139",
+    "test_metrics": "f3361b49cc48ed4f187f698de786c5da"
+  },
+  "feature_schema_version": "1.0",
+  "feature_build_version": "1.0.0",
+  "feature_schema_md5": "c51357d264ca1fe2f867928e2b1fef61",
+  "decision_threshold": 0.26234641106951156,
+  "validation_pr_auc": 0.09021408561343078,
+  "test_metrics": {
+    "customers": 2000,
+    "actual_churners": 157,
+    "class_prevalence": 0.0785,
+    "threshold": 0.26234641106951156,
+    "accuracy": 0.9115,
+    "precision": 0.08333333333333333,
+    "recall": 0.012738853503184714,
+    "f1": 0.022099447513812154,
+    "roc_auc": 0.5117936347204606,
+    "pr_auc": 0.0856018775290029,
+    "confusion_matrix": [
+      [
+        1821,
+        22
+      ],
+      [
+        155,
+        2
+      ]
+    ],
+    "true_negatives": 1821,
+    "false_positives": 22,
+    "false_negatives": 155,
+    "true_positives": 2
+  },
+  "limitations": [
+    "Validation precision requirement not met",
+    "Churn label timing relative to feature cutoff has not been verified",
+    "Test metrics must not be used for further model or threshold tuning"
+  ],
+  "provenance_notes": [
+    "Feature schema created after this training run; feature names match, historical schema approval unverified.",
+    "DVC lock records historical pipeline dependencies; source files were subsequently reformatted.",
+    "Registered model and local joblib artifact equivalence has not been independently verified."
+  ]
+}
