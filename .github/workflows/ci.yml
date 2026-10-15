@@ -1,0 +1,36 @@
+name: Telecom Churn CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint and Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --frozen --dev --no-install-project
+
+      - name: Run Ruff
+        run: uv run --no-sync ruff check api src tests
+
+      - name: Run artifact-independent unit tests
+        run: uv run --no-sync python -m pytest tests/test_request_schema.py -q
